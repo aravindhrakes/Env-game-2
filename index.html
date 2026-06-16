@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>HAZARD ZONE — Construction Site Inspector</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@300;400;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --red: #FF2020;
+      --orange: #FF8C00;
+      --green: #00FF88;
+      --gold: #FFD700;
+      --dark: #070A0D;
+      --panel: rgba(4,8,12,0.97);
+    }
+    *{margin:0;padding:0;box-sizing:border-box;}
+    html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:'Oswald',sans-serif;}
+
+    /* ── OUTER WRAPPER ── */
+    #game{width:100vw;height:100vh;display:flex;align-items:center;justify-content:center;background:#000;}
+    #frame{position:relative;width:100%;max-width:1400px;aspect-ratio:16/9;max-height:100vh;overflow:hidden;}
+
+    /* ── SCREENS ── */
+    .screen{position:absolute;inset:0;display:none;flex-direction:column;}
+    .screen.active{display:flex;}
+
+    /* ══════════════════════════════════
+       INTRO SCREEN
+    ══════════════════════════════════ */
+    #introScreen{align-items:center;justify-content:center;background:#000;}
+    #introBg{
+      position:absolute;inset:0;
+      background:linear-gradient(180deg,rgba(0,0,0,.55) 0%,rgba(0,0,0,.15) 45%,rgba(0,0,0,.7) 100%),
+        url('https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=1400&q=85') center/cover;
+      filter:sepia(20%) saturate(1.3) contrast(1.05);
+      animation:slowZoom 10s ease-out forwards;
+    }
+    @keyframes slowZoom{from{transform:scale(1.18);}to{transform:scale(1);}}
+    .intro-inner{position:relative;z-index:5;text-align:center;padding:20px;}
+    .tag{font-family:'Share Tech Mono',monospace;font-size:clamp(.55rem,1.2vw,.85rem);color:rgba(255,215,0,.75);letter-spacing:.45em;text-transform:uppercase;opacity:0;animation:fadeUp .7s .4s forwards;}
+    .game-title{font-size:clamp(2.2rem,5.5vw,5rem);font-weight:700;color:#fff;letter-spacing:.06em;text-transform:uppercase;line-height:1;opacity:0;animation:fadeUp .7s .9s forwards;text-shadow:0 0 40px rgba(255,32,32,.4);}
+    .game-title span{color:var(--red);display:block;font-size:1.45em;text-shadow:0 0 60px rgba(255,32,32,.7);}
+    .subtitle{font-family:'Share Tech Mono',monospace;font-size:clamp(.55rem,1.1vw,.8rem);color:rgba(255,255,255,.5);letter-spacing:.35em;text-transform:uppercase;margin-top:14px;opacity:0;animation:fadeUp .7s 1.4s forwards;}
+    .start-btn{
+      margin-top:48px;padding:15px 52px;background:transparent;
+      border:2px solid var(--red);color:#fff;
+      font-family:'Oswald',sans-serif;font-size:clamp(.9rem,1.8vw,1.1rem);font-weight:600;
+      letter-spacing:.3em;text-transform:uppercase;cursor:pointer;
+      opacity:0;animation:fadeUp .7s 1.9s forwards;
+      transition:all .3s;position:relative;overflow:hidden;
+    }
+    .start-btn::before{content:'';position:absolute;inset:0;background:var(--red);transform:scaleX(0);transform-origin:left;transition:transform .3s;z-index:-1;}
+    .start-btn:hover::before{transform:scaleX(1);}
+    .badge{position:absolute;top:22px;right:22px;text-align:right;z-index:10;}
+    .badge-lbl{font-family:'Share Tech Mono',monospace;font-size:clamp(.45rem,.9vw,.65rem);color:rgba(255,215,0,.55);letter-spacing:.2em;}
+    .badge-val{font-size:clamp(.6rem,1.1vw,.85rem);color:rgba(255,255,255,.75);font-weight:600;}
+
+    /* ══════════════════════════════════
+       GAME SCREEN
+    ══════════════════════════════════ */
+    #gameScreen{flex-direction:row;}
+
+    /* Scene */
+    #scene{flex:1;position:relative;overflow:hidden;height:100%;}
+    #sceneBg{position:absolute;inset:0;background-size:cover;background-position:center;filter:contrast(1.1) saturate(0.88);transition:background-image .5s;}
+    #grade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(5,12,3,.35) 0%,transparent 28%,transparent 68%,rgba(0,4,10,.55) 100%);pointer-events:none;z-index:2;}
+    #vig{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 45%,transparent 48%,rgba(0,0,0,.72) 100%);pointer-events:none;z-index:3;}
+    #hcvs{position:absolute;inset:0;z-index:5;cursor:crosshair;}
+
+    /* HUD */
+    #hud{position:absolute;inset:0;z-index:6;pointer-events:none;}
+    #lvlInfo{position:absolute;top:18px;left:18px;}
+    #lvlTag{font-family:'Share Tech Mono',monospace;font-size:clamp(.5rem,1vw,.75rem);color:var(--gold);letter-spacing:.3em;text-transform:uppercase;}
+    #lvlTitle{font-size:clamp(.9rem,2.2vw,1.6rem);font-weight:700;color:#fff;letter-spacing:.05em;text-transform:uppercase;text-shadow:0 2px 12px rgba(0,0,0,.9);}
+    #lvlDesc{font-family:'Share Tech Mono',monospace;font-size:clamp(.42rem,.9vw,.68rem);color:rgba(255,255,255,.45);letter-spacing:.18em;}
+
+    /* REC badge */
+    #recBadge{position:absolute;top:18px;right:18px;display:flex;align-items:center;gap:6px;font-family:'Share Tech Mono',monospace;font-size:clamp(.45rem,.85vw,.65rem);color:rgba(255,255,255,.55);letter-spacing:.2em;}
+    #recDot{width:8px;height:8px;border-radius:50%;background:var(--red);animation:recPulse 1.2s infinite;}
+    @keyframes recPulse{0%,100%{opacity:1;}50%{opacity:.2;}}
+
+    /* Timer */
+    #timerWrap{position:absolute;bottom:18px;right:18px;text-align:right;}
+    #timerLbl{font-family:'Share Tech Mono',monospace;font-size:clamp(.42rem,.85vw,.62rem);color:rgba(255,255,255,.4);letter-spacing:.25em;}
+    #timerNum{font-family:'Share Tech Mono',monospace;font-size:clamp(1.3rem,2.5vw,2rem);color:#fff;text-shadow:0 0 16px rgba(255,255,255,.4);}
+    #timerNum.urgent{color:var(--red);text-shadow:0 0 20px rgba(255,32,32,.7);animation:urgPulse .5s infinite;}
+    @keyframes urgPulse{0%,100%{opacity:1;}50%{opacity:.5;}}
+    #timerBar{width:100px;height:3px;background:rgba(255,255,255,.15);margin-top:4px;margin-left:auto;}
+    #timerFill{height:100%;background:var(--green);transition:width 1s linear,background .5s;}
+
+    /* Score */
+    #scoreLbl{position:absolute;bottom:18px;left:18px;font-family:'Share Tech Mono',monospace;font-size:clamp(.42rem,.85vw,.62rem);color:rgba(255,255,255,.35);letter-spacing:.25em;}
+    #scoreNum{font-size:clamp(1.2rem,2.3vw,1.8rem);font-weight:700;color:var(--gold);text-shadow:0 0 16px rgba(255,215,0,.45);}
+
+    /* Character */
+    #char{position:absolute;bottom:10%;left:6%;width:clamp(36px,4.5vw,62px);z-index:4;animation:charBob .65s ease-in-out infinite;}
+    @keyframes charBob{0%,100%{transform:translateY(0);}50%{transform:translateY(-7px);}}
+
+    /* Notification */
+    #notif{
+      position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+      background:rgba(0,0,0,.92);border:2px solid var(--red);
+      padding:18px 36px;text-align:center;z-index:20;
+      opacity:0;pointer-events:none;min-width:280px;
+    }
+    #notif.show{animation:notifAnim 2.8s forwards;}
+    @keyframes notifAnim{
+      0%{opacity:0;transform:translate(-50%,-42%);}
+      12%{opacity:1;transform:translate(-50%,-50%);}
+      75%{opacity:1;transform:translate(-50%,-50%);}
+      100%{opacity:0;transform:translate(-50%,-58%);}
+    }
+    #nIcon{font-size:1.8rem;margin-bottom:4px;}
+    #nLabel{font-family:'Share Tech Mono',monospace;font-size:clamp(.5rem,1vw,.72rem);color:var(--red);letter-spacing:.3em;}
+    #nName{font-size:clamp(.9rem,1.8vw,1.3rem);font-weight:700;color:#fff;margin:5px 0;}
+    #nDetail{font-family:'Share Tech Mono',monospace;font-size:clamp(.42rem,.85vw,.65rem);color:rgba(255,255,255,.55);line-height:1.5;}
+    #nPts{font-size:clamp(.9rem,1.8vw,1.3rem);font-weight:700;color:var(--gold);margin-top:8px;}
+
+    /* Skip */
+    #skipBtn{
+      position:absolute;bottom:18px;left:50%;transform:translateX(-50%);
+      font-family:'Share Tech Mono',monospace;font-size:clamp(.42rem,.85vw,.65rem);
+      color:rgba(255,255,255,.25);letter-spacing:.2em;background:none;
+      border:1px solid rgba(255,255,255,.1);padding:5px 14px;cursor:pointer;
+      z-index:10;transition:all .25s;pointer-events:all;
+    }
+    #skipBtn:hover{color:rgba(255,255,255,.6);border-color:rgba(255,255,255,.3);}
+
+    /* ── PANEL ── */
+    #panel{
+      width:27%;min-width:210px;max-width:320px;height:100%;
+      background:var(--panel);border-left:1px solid rgba(255,255,255,.04);
+      display:flex;flex-direction:column;padding:18px 14px;position:relative;overflow:hidden;
+    }
+    #panel::before{
+      content:'';position:absolute;inset:0;
+      background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(255,255,255,.012) 3px,rgba(255,255,255,.012) 4px);
+      pointer-events:none;z-index:0;
+    }
+    .ps{position:relative;z-index:1;}
+    .pl-top{text-align:center;margin-bottom:14px;}
+    .pl-lvnum{font-family:'Share Tech Mono',monospace;font-size:clamp(.42rem,.85vw,.62rem);color:rgba(255,255,255,.28);letter-spacing:.3em;}
+    .pl-lvname{font-size:clamp(.75rem,1.4vw,1rem);font-weight:600;color:rgba(255,255,255,.8);letter-spacing:.08em;text-transform:uppercase;}
+    .ph{font-family:'Share Tech Mono',monospace;font-size:clamp(.48rem,.95vw,.7rem);color:var(--gold);letter-spacing:.28em;border-bottom:1px solid rgba(255,215,0,.18);padding-bottom:10px;margin-bottom:12px;}
+
+    /* Discovery boxes */
+    #boxes{flex:1;display:flex;flex-direction:column;gap:7px;}
+    .dbox{
+      border:1px solid rgba(255,255,255,.07);background:rgba(255,255,255,.018);
+      padding:9px 11px;min-height:66px;position:relative;overflow:hidden;
+      display:flex;align-items:center;justify-content:center;transition:all .3s;
+    }
+    .dbox-num{font-family:'Share Tech Mono',monospace;font-size:clamp(.9rem,1.8vw,1.4rem);color:rgba(255,255,255,.07);font-weight:700;}
+    .dbox.found{border-color:var(--red);background:rgba(255,32,32,.045);display:block;animation:boxIn .45s ease-out;}
+    .dbox.found::before{content:'';position:absolute;top:0;left:0;width:3px;height:100%;background:var(--red);}
+    @keyframes boxIn{from{transform:translateX(-8px);opacity:0;}to{transform:translateX(0);opacity:1;}}
+    .hicon{font-size:1.1rem;margin-bottom:3px;}
+    .hname{font-size:clamp(.55rem,1.05vw,.8rem);font-weight:600;color:#fff;text-transform:uppercase;letter-spacing:.04em;line-height:1.2;}
+    .hsev{font-family:'Share Tech Mono',monospace;font-size:clamp(.4rem,.8vw,.6rem);letter-spacing:.2em;margin-top:3px;}
+    .sc{color:var(--red);}.sh{color:var(--orange);}.sm{color:var(--gold);}
+
+    /* Panel bottom */
+    .pb{margin-top:auto;padding-top:12px;border-top:1px solid rgba(255,255,255,.05);}
+    .pb-lbl{font-family:'Share Tech Mono',monospace;font-size:clamp(.42rem,.85vw,.62rem);color:rgba(255,255,255,.28);letter-spacing:.28em;}
+    .pb-val{font-size:clamp(1.2rem,2.3vw,1.8rem);font-weight:700;color:var(--gold);}
+    .pdots{display:flex;gap:5px;margin-top:8px;}
+    .pdot{width:10px;height:10px;border-radius:50%;border:1.5px solid rgba(255,255,255,.18);transition:all .3s;}
+    .pdot.on{background:var(--red);border-color:var(--red);box-shadow:0 0 7px rgba(255,32,32,.55);}
+    #scanHint{margin-top:10px;font-family:'Share Tech Mono',monospace;font-size:clamp(.38rem,.75vw,.58rem);color:rgba(255,255,255,.22);letter-spacing:.12em;text-align:center;animation:hint 2s infinite;}
+    @keyframes hint{0%,100%{opacity:.4;}50%{opacity:1;}}
+
+    /* ══════════════════════════════════
+       TRANSITION SCREEN
+    ══════════════════════════════════ */
+    #transScreen{background:#000;align-items:center;justify-content:center;}
+    .tc{text-align:center;padding:24px;}
+    .t-found{font-family:'Share Tech Mono',monospace;font-size:clamp(.55rem,1.1vw,.85rem);color:var(--green);letter-spacing:.4em;margin-bottom:18px;}
+    .t-score{font-size:clamp(2.5rem,6vw,5.5rem);font-weight:700;color:var(--gold);text-shadow:0 0 40px rgba(255,215,0,.45);}
+    .t-ptslbl{font-family:'Share Tech Mono',monospace;font-size:clamp(.5rem,1vw,.75rem);color:rgba(255,255,255,.35);letter-spacing:.3em;}
+    .t-div{width:50px;height:2px;background:var(--red);margin:18px auto;}
+    .t-next{font-size:clamp(1rem,2vw,1.6rem);font-weight:600;color:#fff;letter-spacing:.08em;}
+
+    /* ══════════════════════════════════
+       RESULT SCREEN
+    ══════════════════════════════════ */
+    #resultScreen{align-items:center;justify-content:center;background:#000;}
+    #resBg{position:absolute;inset:0;background:url('https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=1400&q=60') center/cover;filter:brightness(.18) saturate(.3);}
+    .rc{position:relative;z-index:5;text-align:center;padding:28px;}
+    .r-lbl{font-family:'Share Tech Mono',monospace;font-size:clamp(.55rem,1.1vw,.85rem);color:var(--gold);letter-spacing:.5em;margin-bottom:10px;}
+    .r-title{font-size:clamp(1.8rem,4vw,3.5rem);font-weight:700;color:#fff;letter-spacing:.1em;margin-bottom:28px;}
+    .r-grade{width:90px;height:90px;border-radius:50%;border:3px solid var(--gold);display:flex;align-items:center;justify-content:center;margin:0 auto 24px;}
+    .r-grade span{font-size:2.6rem;font-weight:700;color:var(--gold);}
+    .r-stats{display:flex;gap:36px;justify-content:center;margin-bottom:36px;flex-wrap:wrap;}
+    .r-stat{text-align:center;}
+    .r-sval{font-size:clamp(1.6rem,3.2vw,2.6rem);font-weight:700;color:var(--gold);}
+    .r-slbl{font-family:'Share Tech Mono',monospace;font-size:clamp(.42rem,.85vw,.65rem);color:rgba(255,255,255,.38);letter-spacing:.2em;margin-top:4px;}
+    .again-btn{
+      padding:13px 42px;background:transparent;border:2px solid var(--gold);
+      color:var(--gold);font-family:'Oswald',sans-serif;font-size:clamp(.85rem,1.7vw,1.05rem);
+      font-weight:600;letter-spacing:.3em;text-transform:uppercase;cursor:pointer;transition:all .3s;
+    }
+    .again-btn:hover{background:var(--gold);color:#000;}
+
+    /* ── UTILS ── */
+    @keyframes fadeUp{from{opacity:0;transform:translateY(18px);}to{opacity:1;transform:translateY(0);}}
+    .flash-ring{position:absolute;border-radius:50%;background:radial-gradient(circle,rgba(255,32,32,.55) 0%,transparent 70%);pointer-events:none;z-index:7;animation:flashOut .55s forwards;}
+    @keyframes flashOut{from{transform:scale(0);opacity:1;}to{transform:scale(3.5);opacity:0;}}
+
+    /* Film grain canvas */
+    #grain{position:fixed;inset:0;pointer-events:none;z-index:9999;opacity:.055;mix-blend-mode:overlay;}
+  </style>
+</head>
+<body>
+
+<canvas id="grain"></canvas>
+
+<div id="game">
+ <div id="frame">
+
+  <!-- INTRO -->
+  <div id="introScreen" class="screen active">
+    <div id="introBg"></div>
+    <div class="intro-inner">
+      <div class="tag">Environmental Safety Training — Module 07</div>
+      <div class="game-title"><span>HAZARD ZONE</span>CONSTRUCTION SITE</div>
+      <div class="subtitle">Identify · Assess · Protect</div>
+      <button class="start-btn" onclick="startGame()">BEGIN INSPECTION</button>
+    </div>
+    <div class="badge">
+      <div class="badge-lbl">INSPECTOR ID</div>
+      <div class="badge-val">A. RODRIGUEZ</div>
+      <div class="badge-lbl" style="margin-top:2px">CERT #ENV-047</div>
+    </div>
+  </div>
+
+  <!-- GAME -->
+  <div id="gameScreen" class="screen">
+    <div id="scene">
+      <div id="sceneBg"></div>
+      <div id="grade"></div>
+      <div id="vig"></div>
+      <canvas id="hcvs"></canvas>
+      <div id="hud">
+        <div id="lvlInfo">
+          <div id="lvlTag">ZONE A — LEVEL 01</div>
+          <div id="lvlTitle">SITE ENTRANCE</div>
+          <div id="lvlDesc">Perimeter Assessment — Outdoor Works</div>
+        </div>
+        <div id="recBadge"><div id="recDot"></div>REC</div>
+        <div id="scoreLbl">INSPECTOR SCORE<br><span id="scoreNum">000</span></div>
+        <div id="timerWrap">
+          <div id="timerLbl">TIME REMAINING</div>
+          <div id="timerNum">01:30</div>
+          <div id="timerBar"><div id="timerFill"></div></div>
+        </div>
+      </div>
+
+      <!-- Walking inspector -->
+      <div id="char">
+        <svg viewBox="0 0 60 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <ellipse cx="30" cy="11" rx="19" ry="7.5" fill="#FFD700"/>
+          <rect x="11" y="14" width="38" height="5" rx="2.5" fill="#E6B800"/>
+          <ellipse cx="30" cy="23" rx="10" ry="11" fill="#D4A574"/>
+          <rect x="16" y="33" width="28" height="27" rx="3" fill="#FF6600"/>
+          <rect x="23" y="33" width="14" height="27" fill="#FFFF00" opacity=".65"/>
+          <rect x="7" y="34" width="10" height="20" rx="4" fill="#D4A574"/>
+          <rect x="43" y="34" width="10" height="20" rx="4" fill="#D4A574"/>
+          <rect x="18" y="59" width="11" height="28" rx="3" fill="#2C3E50"/>
+          <rect x="31" y="59" width="11" height="28" rx="3" fill="#2C3E50"/>
+          <rect x="15" y="83" width="15" height="10" rx="2" fill="#111"/>
+          <rect x="30" y="83" width="15" height="10" rx="2" fill="#111"/>
+          <rect x="42" y="39" width="14" height="18" rx="1.5" fill="#8B7355"/>
+          <rect x="44" y="42" width="10" height="12" rx="1" fill="#F5F5DC"/>
+          <line x1="46" y1="45" x2="52" y2="45" stroke="#555" stroke-width="1"/>
+          <line x1="46" y1="48" x2="52" y2="48" stroke="#555" stroke-width="1"/>
+          <line x1="46" y1="51" x2="50" y2="51" stroke="#555" stroke-width="1"/>
+        </svg>
+      </div>
+
+      <!-- Hazard found popup -->
+      <div id="notif">
+        <div id="nIcon">⚠️</div>
+        <div id="nLabel">HAZARD IDENTIFIED</div>
+        <div id="nName">—</div>
+        <div id="nDetail">—</div>
+        <div id="nPts">+000 PTS</div>
+      </div>
+
+      <button id="skipBtn" onclick="skipLevel()">SKIP LEVEL →</button>
+    </div>
+
+    <!-- Panel -->
+    <div id="panel">
+      <div class="ps pl-top">
+        <div class="pl-lvnum" id="pLvNum">LEVEL 01 / 03</div>
+        <div class="pl-lvname" id="pLvName">SITE PERIMETER</div>
+      </div>
+      <div class="ps ph">⬡ HAZARD LOG</div>
+      <div id="boxes" class="ps">
+        <div class="dbox" id="b0"><div class="dbox-num">01</div></div>
+        <div class="dbox" id="b1"><div class="dbox-num">02</div></div>
+        <div class="dbox" id="b2"><div class="dbox-num">03</div></div>
+        <div class="dbox" id="b3"><div class="dbox-num">04</div></div>
+        <div class="dbox" id="b4"><div class="dbox-num">05</div></div>
+      </div>
+      <div class="ps pb">
+        <div class="pb-lbl">TOTAL SCORE</div>
+        <div class="pb-val" id="panelScore">000</div>
+        <div class="pdots" id="pdots">
+          <div class="pdot" id="pd0"></div>
+          <div class="pdot" id="pd1"></div>
+          <div class="pdot" id="pd2"></div>
+          <div class="pdot" id="pd3"></div>
+          <div class="pdot" id="pd4"></div>
+        </div>
+        <div id="scanHint">TAP TO IDENTIFY HAZARDS</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TRANSITION -->
+  <div id="transScreen" class="screen">
+    <div class="tc">
+      <div class="t-found" id="tFound">5/5 HAZARDS IDENTIFIED</div>
+      <div class="t-score" id="tScore">0</div>
+      <div class="t-ptslbl">ZONE POINTS</div>
+      <div class="t-div"></div>
+      <div class="t-next" id="tNext">PROCEEDING TO ZONE B</div>
+    </div>
+  </div>
+
+  <!-- RESULTS -->
+  <div id="resultScreen" class="screen">
+    <div id="resBg"></div>
+    <div class="rc">
+      <div class="r-lbl">INSPECTION COMPLETE</div>
+      <div class="r-title">MISSION DEBRIEF</div>
+      <div class="r-grade"><span id="rGrade">A</span></div>
+      <div class="r-stats">
+        <div class="r-stat"><div class="r-sval" id="rHaz">0/15</div><div class="r-slbl">HAZARDS FOUND</div></div>
+        <div class="r-stat"><div class="r-sval" id="rScore">0</div><div class="r-slbl">FINAL SCORE</div></div>
+        <div class="r-stat"><div class="r-sval" id="rBonus">+0</div><div class="r-slbl">TIME BONUS</div></div>
+      </div>
+      <button class="again-btn" onclick="restartGame()">INSPECT AGAIN</button>
+    </div>
+  </div>
+
+ </div>
+</div>
+
+<script>
+const LEVELS = [
+  {
+    tag:'ZONE A — LEVEL 01', title:'SITE ENTRANCE', desc:'Perimeter Assessment — Outdoor Works',
+    pLvNum:'LEVEL 01 / 03', pLvName:'SITE PERIMETER',
+    tNext:'PROCEEDING TO INTERIOR — ZONE B',
+    img:'https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=1400&q=85',
+    imgFb:'linear-gradient(135deg,#2a3520 0%,#1a2418 40%,#0d1510 100%)',
+    time:90,
+    hazards:[
+      {id:'A1',x:.12,y:.54,w:.10,h:.20,name:'UNMARKED EXCAVATION PIT',detail:'Open pit with no barriers or warning signage — Fall & burial risk',sev:'CRITICAL',icon:'⚠️',pts:300},
+      {id:'A2',x:.38,y:.50,w:.09,h:.17,name:'UNLABELED CHEMICAL DRUMS',detail:'Unidentified hazardous substances — Toxic & fire risk',sev:'HIGH',icon:'☣️',pts:200},
+      {id:'A3',x:.63,y:.28,w:.10,h:.24,name:'WORKER WITHOUT HARD HAT',detail:'No PPE in active falling-object zone',sev:'HIGH',icon:'⛑️',pts:200},
+      {id:'A4',x:.28,y:.68,w:.13,h:.10,name:'EXPOSED ELECTRICAL CABLES',detail:'Live cables on wet ground — Electrocution risk',sev:'CRITICAL',icon:'⚡',pts:300},
+      {id:'A5',x:.80,y:.43,w:.10,h:.22,name:'MISSING PERIMETER BARRIER',detail:'No site boundary protection — Public exposure risk',sev:'MEDIUM',icon:'🚧',pts:150}
+    ]
+  },
+  {
+    tag:'ZONE B — LEVEL 02', title:'INTERIOR FLOOR', desc:'Structural Works — Level 3 Assessment',
+    pLvNum:'LEVEL 02 / 03', pLvName:'INTERIOR WORKS',
+    tNext:'PROCEEDING TO ROOFTOP — ZONE C',
+    img:'https://images.unsplash.com/photo-1541888946425-d81bb19240f5?auto=format&fit=crop&w=1400&q=85',
+    imgFb:'linear-gradient(135deg,#1a1a28 0%,#12121e 50%,#0a0a14 100%)',
+    time:90,
+    hazards:[
+      {id:'B1',x:.08,y:.06,w:.15,h:.22,name:'DISTURBED ASBESTOS CEILING',detail:'ACM tiles broken — Lethal airborne fibre inhalation risk',sev:'CRITICAL',icon:'🦠',pts:300},
+      {id:'B2',x:.30,y:.40,w:.12,h:.22,name:'SILICA DUST EXPOSURE',detail:'Unventilated concrete cutting — Silicosis & lung disease',sev:'HIGH',icon:'💨',pts:250},
+      {id:'B3',x:.55,y:.58,w:.11,h:.16,name:'CHEMICAL SPILL AT DRAIN',detail:'Uncontained hazmat near floor drain — Contamination risk',sev:'HIGH',icon:'💧',pts:200},
+      {id:'B4',x:.72,y:.40,w:.10,h:.22,name:'UNGUARDED FLOOR OPENING',detail:'Open penetration with no cover — Fatal fall risk',sev:'CRITICAL',icon:'🕳️',pts:300},
+      {id:'B5',x:.85,y:.60,w:.10,h:.18,name:'LEAD PAINT DEBRIS',detail:'Disturbed lead-based paint — Heavy metal poisoning risk',sev:'MEDIUM',icon:'🎨',pts:150}
+    ]
+  },
+  {
+    tag:'ZONE C — LEVEL 03', title:'ROOFTOP WORKS', desc:'Height Assessment — Upper Scaffolding',
+    pLvNum:'LEVEL 03 / 03', pLvName:'ROOFTOP ZONE',
+    tNext:'INSPECTION COMPLETE',
+    img:'https://images.unsplash.com/photo-1574607383476-f517f260d30b?auto=format&fit=crop&w=1400&q=85',
+    imgFb:'linear-gradient(135deg,#1a2a38 0%,#111c28 50%,#090f18 100%)',
+    time:90,
+    hazards:[
+      {id:'C1',x:.05,y:.26,w:.12,h:.30,name:'MISSING SCAFFOLD GUARDRAIL',detail:'No edge protection at 12m height — Fatal fall hazard',sev:'CRITICAL',icon:'🏗️',pts:300},
+      {id:'C2',x:.43,y:.33,w:.13,h:.20,name:'UNGUARDED ROOF OPENING',detail:'Open skylight void with no cover or barrier',sev:'CRITICAL',icon:'🔲',pts:300},
+      {id:'C3',x:.20,y:.53,w:.12,h:.20,name:'OVERLOADED SCAFFOLD BOARD',detail:'Board exceeds 275 kg/m² safe load — Collapse risk',sev:'HIGH',icon:'⚖️',pts:250},
+      {id:'C4',x:.70,y:.20,w:.12,h:.28,name:'WORKER WITHOUT HARNESS',detail:'Working at height without fall arrest system',sev:'HIGH',icon:'🪢',pts:250},
+      {id:'C5',x:.58,y:.04,w:.14,h:.20,name:'UNSTABLE MATERIAL STACK',detail:'Unsecured rooftop materials — Wind displacement & crush risk',sev:'MEDIUM',icon:'📦',pts:150}
+    ]
+  }
+];
+
+let lvlIdx=0, score=0, found=new Set(), timeLeft=90, timerID=null,
+    active=false, cvs=null, gctx=null, t=0, hovH=null, totalFound=0, timeBonus=0;
+
+// Film grain
+const gc=document.getElementById('grain'), gx=gc.getContext('2d');
+function resizeGrain(){gc.width=innerWidth;gc.height=innerHeight;}
+function doGrain(){
+  const id=gx.createImageData(gc.width,gc.height);
+  for(let i=0;i<id.data.length;i+=4){
+    const v=Math.random()*255|0;
+    id.data[i]=id.data[i+1]=id.data[i+2]=v;
+    id.data[i+3]=Math.random()*35|0;
+  }
+  gx.putImageData(id,0,0);
+  requestAnimationFrame(doGrain);
+}
+resizeGrain();doGrain();
+addEventListener('resize',resizeGrain);
+
+function show(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function startGame(){lvlIdx=0;score=0;totalFound=0;timeBonus=0;show('gameScreen');loadLevel(0);}
+function restartGame(){show('introScreen');}
+
+function loadLevel(i){
+  const lv=LEVELS[i];
+  found=new Set(); timeLeft=lv.time; active=true; hovH=null;
+  document.getElementById('lvlTag').textContent=lv.tag;
+  document.getElementById('lvlTitle').textContent=lv.title;
+  document.getElementById('lvlDesc').textContent=lv.desc;
+  document.getElementById('pLvNum').textContent=lv.pLvNum;
+  document.getElementById('pLvName').textContent=lv.pLvName;
+  const bg=document.getElementById('sceneBg');
+  bg.style.background=lv.imgFb;
+  const img=new Image();
+  img.onload=()=>{bg.style.background=`linear-gradient(rgba(0,0,0,.2),rgba(0,0,0,.15)),url('${lv.img}') center/cover`;bg.style.backgroundSize='cover';};
+  img.onerror=()=>{bg.style.background=lv.imgFb;};
+  img.src=lv.img;
+  for(let k=0;k<5;k++){
+    const b=document.getElementById('b'+k);
+    b.className='dbox';b.innerHTML=`<div class="dbox-num">0${k+1}</div>`;
+    document.getElementById('pd'+k).className='pdot';
+  }
+  updateScore();
+  setupCanvas();
+  clearInterval(timerID);
+  timerID=setInterval(tick,1000);
+  renderTimer();
+}
+
+function setupCanvas(){
+  const sc=document.getElementById('scene');
+  cvs=document.getElementById('hcvs');
+  cvs.width=sc.offsetWidth; cvs.height=sc.offsetHeight;
+  gctx=cvs.getContext('2d');
+  cvs.onclick=onCanvasClick;
+  cvs.ontouchend=e=>{
+    e.preventDefault();
+    const r=cvs.getBoundingClientRect(),to=e.changedTouches[0];
+    onCanvasClick({clientX:to.clientX,clientY:to.clientY,_rect:r});
+  };
+  cvs.onmousemove=onMouseMove;
+  requestAnimationFrame(loop);
+}
+
+function loop(){
+  if(!active)return;
+  t+=0.05;
+  drawHazards();
+  requestAnimationFrame(loop);
+}
+
+function drawHazards(){
+  if(!gctx)return;
+  gctx.clearRect(0,0,cvs.width,cvs.height);
+  const lv=LEVELS[lvlIdx];
+  lv.hazards.forEach((h,i)=>{
+    if(found.has(h.id)){
+      const cx=(h.x+h.w/2)*cvs.width,cy=(h.y+h.h/2)*cvs.height;
+      const r=Math.min(h.w,h.h)*cvs.width*0.3;
+      gctx.strokeStyle='rgba(255,32,32,.7)';gctx.lineWidth=3;
+      gctx.beginPath();gctx.moveTo(cx-r,cy-r);gctx.lineTo(cx+r,cy+r);gctx.stroke();
+      gctx.beginPath();gctx.moveTo(cx+r,cy-r);gctx.lineTo(cx-r,cy+r);gctx.stroke();
+      return;
+    }
+    const x=h.x*cvs.width,y=h.y*cvs.height,w=h.w*cvs.width,ht=h.h*cvs.height;
+    const cx=x+w/2,cy=y+ht/2;
+    const p=(Math.sin(t*2+i)+1)/2,p2=(Math.sin(t*1.4+i*.8)+1)/2;
+    const hov=hovH===h.id;
+    const rad=Math.min(w,ht)*.55+p*Math.min(w,ht)*.18;
+    gctx.beginPath();gctx.arc(cx,cy,rad,0,Math.PI*2);
+    gctx.strokeStyle=hov?`rgba(255,40,40,${.6+p*.35})`:`rgba(255,200,0,${.12+p*.14})`;
+    gctx.lineWidth=hov?2:.8;gctx.stroke();
+    const rad2=rad*1.35+p2*Math.min(w,ht)*.08;
+    gctx.beginPath();gctx.arc(cx,cy,rad2,0,Math.PI*2);
+    gctx.strokeStyle=hov?`rgba(255,40,40,${.25+p2*.2})`:`rgba(255,200,0,${.05+p2*.05})`;
+    gctx.lineWidth=.5;gctx.stroke();
+    if(hov){
+      gctx.strokeStyle='rgba(255,40,40,.75)';gctx.lineWidth=1.5;
+      gctx.strokeRect(x,y,w,ht);
+      gctx.fillStyle='rgba(255,32,32,.06)';gctx.fillRect(x,y,w,ht);
+      const bs=Math.min(w,ht)*.18;
+      gctx.strokeStyle='rgba(255,40,40,.95)';gctx.lineWidth=2;
+      [[x,y],[x+w,y],[x,y+ht],[x+w,y+ht]].forEach(([bx,by],bi)=>{
+        const sx=bi%2===0?1:-1,sy=bi<2?1:-1;
+        gctx.beginPath();gctx.moveTo(bx,by+sy*bs);gctx.lineTo(bx,by);gctx.lineTo(bx+sx*bs,by);gctx.stroke();
+      });
+      gctx.fillStyle='rgba(0,0,0,.78)';
+      const lw=130,lh=20;
+      gctx.fillRect(cx-lw/2,y-lh-4,lw,lh);
+      gctx.strokeStyle='rgba(255,40,40,.7)';gctx.lineWidth=1;
+      gctx.strokeRect(cx-lw/2,y-lh-4,lw,lh);
+      gctx.fillStyle='#FF2020';
+      gctx.font=`bold ${Math.round(cvs.width*.0085)}px Oswald,sans-serif`;
+      gctx.textAlign='center';
+      gctx.fillText('TAP TO IDENTIFY',cx,y-8);
+    } else {
+      gctx.beginPath();gctx.arc(cx,cy,3.5,0,Math.PI*2);
+      gctx.fillStyle=`rgba(255,200,0,${.28+p*.45})`;gctx.fill();
+    }
+  });
+}
+
+function onMouseMove(e){
+  const r=cvs.getBoundingClientRect();
+  const mx=(e.clientX-r.left)/r.width,my=(e.clientY-r.top)/r.height;
+  hovH=null;
+  LEVELS[lvlIdx].hazards.forEach(h=>{
+    if(found.has(h.id))return;
+    if(mx>=h.x&&mx<=h.x+h.w&&my>=h.y&&my<=h.y+h.h){hovH=h.id;cvs.style.cursor='crosshair';}
+  });
+  if(!hovH)cvs.style.cursor='default';
+}
+
+function onCanvasClick(e){
+  if(!active)return;
+  const r=e._rect||cvs.getBoundingClientRect();
+  const mx=(e.clientX-r.left)/r.width,my=(e.clientY-r.top)/r.height;
+  LEVELS[lvlIdx].hazards.forEach(h=>{
+    if(found.has(h.id))return;
+    if(mx>=h.x&&mx<=h.x+h.w&&my>=h.y&&my<=h.y+h.h)
+      discoverHazard(h,e.clientX-r.left,e.clientY-r.top);
+  });
+}
+
+function discoverHazard(h,px,py){
+  found.add(h.id);totalFound++;
+  const bonus=Math.floor(h.pts*(1+timeLeft/LEVELS[lvlIdx].time*.5));
+  score+=bonus;
+  const bi=found.size-1;
+  const b=document.getElementById('b'+bi);
+  b.className='dbox found';
+  const sc2={'CRITICAL':'sc','HIGH':'sh','MEDIUM':'sm'}[h.sev]||'sc';
+  b.innerHTML=`<div class="hicon">${h.icon}</div><div class="hname">${h.name}</div><div class="hsev ${sc2}">${h.sev}</div>`;
+  document.getElementById('pd'+bi).className='pdot on';
+  updateScore();
+  showNotif(h,bonus);
+  flashEffect(px,py);
+  if(found.size===LEVELS[lvlIdx].hazards.length)setTimeout(levelDone,1600);
+}
+
+function flashEffect(x,y){
+  const el=document.createElement('div');
+  el.className='flash-ring';
+  el.style.cssText=`left:${x-60}px;top:${y-60}px;width:120px;height:120px;`;
+  document.getElementById('scene').appendChild(el);
+  setTimeout(()=>el.remove(),600);
+}
+
+function showNotif(h,pts){
+  const n=document.getElementById('notif');
+  document.getElementById('nIcon').textContent=h.icon;
+  document.getElementById('nName').textContent=h.name;
+  document.getElementById('nDetail').textContent=h.detail;
+  document.getElementById('nPts').textContent=`+${pts} PTS`;
+  const cols={'CRITICAL':'#FF2020','HIGH':'#FF8C00','MEDIUM':'#FFD700'};
+  n.style.borderColor=cols[h.sev]||'#FF2020';
+  n.className='';void n.offsetWidth;n.className='show';
+}
+
+function updateScore(){
+  const s=String(score).padStart(3,'0');
+  document.getElementById('scoreNum').textContent=s;
+  document.getElementById('panelScore').textContent=s;
+}
+
+function tick(){
+  if(!active)return;
+  timeLeft=Math.max(0,timeLeft-1);
+  renderTimer();
+  if(timeLeft===0){clearInterval(timerID);levelDone();}
+}
+
+function renderTimer(){
+  const lv=LEVELS[lvlIdx];
+  const m=Math.floor(timeLeft/60),s=timeLeft%60;
+  const el=document.getElementById('timerNum');
+  el.textContent=`${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  el.className=timeLeft<=15?'urgent':'';
+  const pct=timeLeft/lv.time*100;
+  const f=document.getElementById('timerFill');
+  f.style.width=pct+'%';
+  f.style.background=pct>50?'var(--green)':pct>25?'var(--orange)':'var(--red)';
+}
+
+function skipLevel(){if(active)levelDone();}
+
+function levelDone(){
+  active=false;clearInterval(timerID);
+  if(timeLeft>0){const b=timeLeft*10;timeBonus+=b;score+=b;}
+  updateScore();
+  const lv=LEVELS[lvlIdx];
+  document.getElementById('tFound').textContent=`${found.size}/5 HAZARDS IDENTIFIED`;
+  document.getElementById('tScore').textContent=score;
+  document.getElementById('tNext').textContent=lv.tNext;
+  show('transScreen');
+  setTimeout(()=>{
+    lvlIdx++;
+    if(lvlIdx<LEVELS.length){show('gameScreen');loadLevel(lvlIdx);}
+    else showResults();
+  },3200);
+}
+
+function showResults(){
+  show('resultScreen');
+  const maxPts=LEVELS.reduce((a,l)=>a+l.hazards.reduce((b,h)=>b+h.pts,0),0);
+  const pct=score/(maxPts+timeBonus*.25)*100;
+  const g=pct>=90?'S':pct>=75?'A':pct>=60?'B':pct>=42?'C':'D';
+  document.getElementById('rGrade').textContent=g;
+  document.getElementById('rHaz').textContent=`${totalFound}/15`;
+  document.getElementById('rScore').textContent=score;
+  document.getElementById('rBonus').textContent=`+${timeBonus}`;
+}
+
+addEventListener('resize',()=>{
+  if(document.getElementById('gameScreen').classList.contains('active'))setupCanvas();
+});
+</script>
+</body>
+</html>
